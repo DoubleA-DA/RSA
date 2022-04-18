@@ -1,7 +1,8 @@
 #include"bits/stdc++.h"
 #include"../insert/insertion.cpp"
-//#include"sets_ld/set_eq_paths.cpp"
+#include"../sets_ld/sets_ini.cpp"
 //#include"node/node_ini.cpp"
+#include"../gen_p/gen.cpp"
 using namespace std;
 string dir1=getenv("HOME");
 /////////////////////Creating DS 
@@ -23,7 +24,7 @@ class node
       node(int l,int i)//constructor
       {
          pth.resize(l);
-         wt.resize(l);
+         wt.resize(l,INT_MAX);
          b_pth.resize(l);
          sp_alloc.resize(l);
          /*for(int j=0;j<l;j++)//for the spectrum array
@@ -38,7 +39,7 @@ class node
          storing path,weight in DS
          writing primary path in file data3
       */
-      void ins(vector<int>a,vector<int>a12,int l,int i,string dir1)
+      void ins(vector<int>a,vector<int>a12,int l,int i,string dir1,vector<vector<int>>tmp_s,vector<vector<int>>&score)
       {
          //string dir=getenv("HOME");
          string dir=dir1+"/Documents/RSA/data3.txt";
@@ -52,21 +53,31 @@ class node
             stack<int>link;
             x1=j;
             if(x1==i)continue;
+            if(wt[j]!=INT_MAX)continue;//cout<<"s\n";
+            //cout<<"S\n";
+            if(a[j]==INT_MAX)continue;
+            
             wt[j]=a[j];//storing weight in DS
             while(a12[x1]!=i)
             {
                link.push(x1);
                //cout<<x1<<" "<<i<<" "<<a12[x1]<<" "<<j<<"\n";
+
+               ////////////Updating Threshold
+               score[x1][a12[x1]]=tmp_s[x1][a12[x1]];
+               score[a12[x1]][x1]=tmp_s[a12[x1]][x1];
                x1=a12[x1];
             }
             link.push(x1);//second node
             link.push(i);//source node
+            score[x1][i]=tmp_s[i][x1];
+            score[i][x1]=tmp_s[x1][i];
             while(!link.empty())
             {
                f2<<link.top()<<" ";//writing path
                //cout<<link.top()<<"\n";
 	       //int var=link.top();
-               sp_alloc[link.top()]=vector<int>(1000,0);//initializing spectrum array
+               sp_alloc[link.top()]=vector<int>(3000,0);//initializing spectrum array
                pth[j].push_back(link.top());//storing path in ds
                link.pop();
 	       //v_p[var][link.top()]+=1;
@@ -98,7 +109,7 @@ class node
           f5.close();
       }
       vector<int> rt_pth(int a)
-      {
+      {if(pth[a].size()<2)return {-1};
         return pth[a];
       }
       vector<int> rt_b_pth(int a)
@@ -137,7 +148,34 @@ class node
         sp_alloc[arr1][i]=-1;//filling last position with guard bit
         mx_sp_ptr[arr]=ind+sp;//updating max index 
         mx_sp_ptr[arr1]=ind+sp;//updating max index 
-        for(i=0;i<1000;i++)
+        for(i=0;i<3000;i++)
+        {
+           if(!sp_alloc[arr][i])
+           {
+              sp_ptr[arr]=i;//updating index
+              sp_ptr[arr1]=i;//updating index
+              break;
+           }
+        }
+      }
+      void ins_spec_bk(int sp,int ind,int arr,int arr1)/////////for inserting spectrum in array
+      {
+        /*
+            sp=no. of spectrum
+            ind=starting index
+            arr=selects spectrum array
+            arr1=selects spectrum array
+            arr & arr1 are taken as 1-2 & 2-1 will have same spectrum array
+        */
+        int i;
+        //printf("ind %d sp %d\n",ind,sp);
+        for(i=ind;i<=sp;i++)sp_alloc[arr][i]=1;//filling array with spectrum
+        for(i=ind;i<=sp;i++)sp_alloc[arr1][i]=1;//filling array with spectrum
+        sp_alloc[arr][i]=-1;//filling last position with guard bit
+        sp_alloc[arr1][i]=-1;//filling last position with guard bit
+        mx_sp_ptr[arr]=ind+sp;//updating max index 
+        mx_sp_ptr[arr1]=ind+sp;//updating max index 
+        for(i=0;i<3000;i++)
         {
            if(!sp_alloc[arr][i])
            {
@@ -149,11 +187,179 @@ class node
       }
       void prnt_spec(int arr)
       {
-         for(int i=0;i<1000;i++)cout<<sp_alloc[arr][i];
+         for(int i=0;i<3000;i++)cout<<sp_alloc[arr][i];
          cout<<"\n";
       }
 };
-
+int chk_ind(vector<int>v1,int f,int l,node* n)
+{
+    int i,mx1=0,a1,b1,j,d=0;
+    /////////////////checking for highest index of subcarriers in the path
+    for(i=1;i<v1.size();i++)
+         {
+            if(n[v1[d]].rt_sp(v1[i])>=mx1)a1=d,b1=i,mx1=n[v1[d]].rt_sp(v1[i]);
+            d=i;
+            /*
+               a1 = start
+               b1 = end
+               mx1 = highest index
+            */
+         }
+         ///////////////////////////////////////////////////////////////
+         int count_spec=0,ind=mx1,sw;
+         /*
+            count_spec = counts till f
+            ind = index for free contiguous and continous space
+            sw = flag
+         */
+         while(1)
+         {
+            vector<int>v3;
+            v3=n[a1].rt_sp_arr(b1);/////////storing spectrum array
+            if(ind!=mx1)/////first time it skips, only checks if other indexes are full
+            {
+               for(i=ind;i<v3.size();i++)
+               {
+                  if(!v3[i])count_spec++;
+                  else count_spec=0;
+                  if(count_spec==(f+1))
+                  {
+                     ind=i-count_spec;//extracting the position of the index
+                     break;
+                  }
+               }
+            }
+            /////////////checking for all the indexes in path to make it continous
+            for(i=0;i<v1.size()-1;i++)
+            {
+               sw=0;
+               v3=n[v1[i]].rt_sp_arr(v1[i+1]);
+               for(j=ind;j<ind+f+1;j++)
+               {
+                  if(v3[j])
+                  {
+                     sw=1;
+                     break;
+                  }
+               }
+               if(sw)break;
+            }
+            if(!sw)break;//if sw==0 got the node
+            ind+=f;//updating index with required spectrum and checking it again if sw==1
+            if(ind>=999)////////checking for overflow of slots in the spectrum array
+            {
+               //cout<<"overflow "<<maxx(l,n);
+               //exit(0);
+               return -1;
+            }
+         }
+         return ind;
+}
+///////////checking for allocation of spectrum in backup path
+vector<int>chk_bck_ind(vector<int>v1,int f,int l,node* n)
+{
+    int i,mx1=0,a1,b1,j,d=0;
+    /////////////////checking for highest index of subcarriers in the path
+    for(i=1;i<v1.size();i++)
+         {
+            if(n[v1[d]].rt_sp(v1[i])>=mx1)a1=d,b1=i,mx1=n[v1[d]].rt_sp(v1[i]);
+            d=i;
+            /*
+               a1 = start
+               b1 = end
+               mx1 = highest index
+            */
+         }
+         ///////////////////////////////////////////////////////////////
+         int count_spec=0,ind=mx1,sw,cnt_1=0,f1=0;
+         /*
+            count_spec = counts till f
+            ind = index for free contiguous and continous space
+            sw = flag
+            f1 = remaning of the shared spectrum
+         */
+         while(1)
+         {
+            vector<int>v3;
+            v3=n[a1].rt_sp_arr(b1);/////////storing spectrum array
+            if(ind!=mx1)/////first time it skips, only checks if other indexes are full
+            {
+               for(i=ind;i<v3.size();i++)
+               {
+                  if(v3[i]!=-1)count_spec++;
+                  else count_spec=0,cnt_1=0;
+                  if(v3[i]==1)cnt_1++;
+                  if(!v3[i])cnt_1=0;
+                  if(count_spec==f)
+                  {
+                     f1=count_spec-cnt_1;
+                     ind=i-f1;//extracting the position of the index
+                     break;
+                  }
+               }
+            }
+            /////////////checking for all the indexes in path to make it continous
+            for(i=0;i<v1.size()-1;i++)
+            {
+               sw=0;
+               v3=n[v1[i]].rt_sp_arr(v1[i+1]);
+               for(j=ind;j<ind+f;j++)
+               {
+                  if(v3[j])
+                  {
+                     sw=1;
+                     break;
+                  }
+               }
+               if(sw)break;
+            }if(!f1)f1=ind+f;
+            if(!sw)break;//if sw==0 got the node
+            ind+=f;//updating index with required spectrum and checking it again if sw==1
+            if(ind>=999)////////checking for overflow of slots in the spectrum array
+            {
+               //cout<<"overflow "<<maxx(l,n);
+               //exit(0);
+               return {-1,0};
+            }
+         }
+         return {ind,f1};
+}
+void checkNins(sets st,node* n,int l)
+{
+   int i,j,k,sp,cnt=0,sw,p_ind;
+   vector<int>b_ind(2);
+   for(i=0;i<st.rt_set_siz();i++)
+   {
+      vector<vector<int>>tmp=st.rt_prim_set(i);
+      vector<vector<int>>tmp1=st.rt_bck_set(i);
+      for(j=0;j<tmp.size();j++)
+      {
+         cnt=0,sw=0;
+         for(k=0;k<tmp1[j].size()-1;k++)//////for checking if backup path collides with primary path
+         {
+            if(st.chk_bckup(tmp1[j][k],tmp1[j][k+1])==false)//comparing backup path w/ priamry path
+            {
+               cnt=1;
+               break;
+            }
+         }
+         for(k=0;k<tmp[j].size()-1;k++)////taking spectrum and making path as visited
+         {
+            if(cnt)break;
+            if(!k)sp=st.rt_reqs(tmp[j][0],tmp[j][tmp[j].size()-1]);
+            st.ins_pth(tmp[j][k],tmp[j][k+1]);
+         }
+         if(!cnt)//inserting spectrum in primary and sharing in backup path
+         {
+            p_ind=chk_ind(tmp[j],sp,l,n);
+            b_ind=chk_bck_ind(tmp1[j],sp,l,n);
+            if(p_ind==-1||b_ind[0]==-1)continue;
+            for(k=0;k<tmp[j].size()-1;k++)n[tmp[j][k]].ins_spec(sp,p_ind,tmp[j][k+1],tmp[j][k]);
+            for(k=0;k<tmp1[j].size()-1;k++)n[tmp1[j][k]].ins_spec_bk(b_ind[1],b_ind[0],tmp1[j][k+1],tmp1[j][k]);
+         }
+      }
+   }
+}
 //////////////Finding Shortest Path
 vector<vector<int>> dijk(vector<pair<int,int>>x[],int l,vector<int>&a,int s,vector<int>& a12,vector<vector<int>>v_p,int threshold)
 {
@@ -186,6 +392,7 @@ vector<vector<int>> dijk(vector<pair<int,int>>x[],int l,vector<int>&a,int s,vect
                 int x1=c;
                 //if(x1==i)continue;
                 //wt[j]=a[j];//storing weight in DS
+                cout<<"Checking\n";
                 while(a12_1[x1]!=s)
                 {
                 link.push(x1);
@@ -199,13 +406,14 @@ vector<vector<int>> dijk(vector<pair<int,int>>x[],int l,vector<int>&a,int s,vect
                     int tmp_p=link.top();
                     link.pop();
                     if(link.empty())break;
-                    if(v_p[tmp_p][link.top()]>threshold)tmp_v=1;
-                }
+                    cout<<tmp_p<<" "<<link.top()<<" threshold "<<v_p[tmp_p][link.top()]<<" ";
+                    if(v_p[tmp_p][link.top()]>threshold||v_p[link.top()][tmp_p]>threshold)tmp_v=1;
+                }cout<<"\n";
                 if(tmp_v)continue;
 
 		        a[c]=a[a1]+d,pq.push({a[c],c}),a12[c]=a1;//storing least weighted vertex and path
 		        //cout<<c<<" "<<a1<<"\n";
-		        
+		        cout<<"passed\n";
                 //stack<int>link;
                 x1=c;
                 //if(x1==i)continue;
@@ -224,7 +432,9 @@ vector<vector<int>> dijk(vector<pair<int,int>>x[],int l,vector<int>&a,int s,vect
                     link.pop();
                     if(link.empty())break;
                     v_p[tmp_p][link.top()]+=1;
-                }
+                    v_p[link.top()][tmp_p]+=1;
+                    cout<<tmp_p<<" "<<link.top()<<" threshold "<<v_p[tmp_p][link.top()]<<" ";
+                }cout<<"\n";
 	        }
         }
     }
@@ -271,6 +481,7 @@ vector<vector<int>> bckup(vector<pair<int,int>>x[],int l,vector<int>&weights,int
                 int x1=c;
                 //if(x1==i)continue;
                 //wt[j]=a[j];//storing weight in DS
+                cout<<"checking\n";
                 while(path_link_1[x1]!=i)
                 {
                 link.push(x1);
@@ -283,12 +494,14 @@ vector<vector<int>> bckup(vector<pair<int,int>>x[],int l,vector<int>&weights,int
                     int tmp_p=link.top();
                     link.pop();
                     if(link.empty())break;
-                    if(score[tmp_p][link.top()]>threshold)tmp_v=1;
+                    cout<<tmp_p<<" "<<link.top()<<" threshold "<<score[tmp_p][link.top()]<<" ";
+                    if(score[tmp_p][link.top()]>threshold||score[link.top()][tmp_p]>threshold)tmp_v=1;
                 }//path_link[c]=0;
+                cout<<"\n";
                 if(tmp_v)continue;
                 
                 weights[c]=weights[a1]+d,pq.push({weights[c],c}),path_link[c]=a1;//storing least weighted vertex and path
-                
+                cout<<"passed\n";
                 
                  x1=c;
                 //if(x1==i)continue;
@@ -307,10 +520,27 @@ vector<vector<int>> bckup(vector<pair<int,int>>x[],int l,vector<int>&weights,int
                     link.pop();
                     if(link.empty())break;
                     score[tmp_p][link.top()]+=1;
-                }
+                    score[link.top()][tmp_p]+=1;
+                    cout<<tmp_p<<" "<<link.top()<<" threshold "<<score[tmp_p][link.top()]<<" ";
+                }cout<<"\n";
             }}
         }
         return score;
+}
+int maxx(int l,node* n)
+{
+   int i,j,mx=0,i1=0,j1=0;
+   for(i=0;i<l;i++)
+   {
+      for(j=0;j<l;j++)
+      {
+         if(i==j)continue;
+         if(mx<n[i].rt_max_sp(j))mx=n[i].rt_max_sp(j),i1=i,j1=j;
+        // n[i].prnt_spec(j);
+      }
+   }
+   n[i1].prnt_spec(j1);
+   return mx;
 }
 int main()
 {
@@ -318,103 +548,98 @@ int main()
    //cin.tie(NULL);    
    int l,x1,j;
    
-      cin>>l;
-      vector<pair<int,int>>x[l];
-      add(x,dir1);
+    cin>>l;
+    vector<pair<int,int>>x[l];
+    add(x,dir1);
     node* n=new node[l];
-    int threshold=0,destination,t=0,i=0;
+    int threshold=0,destination,i=0;
     vector<vector<int>>score(l,vector<int>(l,0));
     //string dir=dir1+"/Documents/RSA/data_test.txt";
-    
+    vector<vector<int>>visited_bk(l,vector<int>(l,0));
+     vector<int>visited(l,0);
     //fstream f5(dir,ios_base::app);
+    queue<int>q;
     vector<bool>v(l,0);
     //for primary path
+    vector<vector<int>>ds_path;
+    q.push(0);
+    while(!q.empty())
+    {
+       int t=0;i=0;
+       q.pop();
+       
     while(i<l)
     {
-        t=0;
+        
         vector<int>path_link(2000,0);
         vector<int>weights(l,INT_MAX);
         if(!v[i])n[i]=node(l,i);
         v[i]=1;
         vector<vector<int>>tmp;
-        
+        if(visited[i]==0)
+        {
         tmp=dijk(x,l,weights,i,path_link,score,threshold);
         //cout<<i<<"\n";
-        for(int j=0;j<l;j++)
+       /* ds_path=tmp;
+        for(int i1=0;i1<score.size();i1++){
+	    for(int j1=0;j1<score[i1].size();j1++)cout<<tmp[i1][j1]<<" ";
+    cout<<"\n";}*/
+        for(int j1=0;j1<l;j1++)
         {
-            if(i==j)continue;
-            if(weights[j]==INT_MAX)
+            if(i==j1)continue;
+            if(weights[j1]==INT_MAX)
             {
                 t=1;
+                q.push(i);
                 break;
             }
             //cout<<weights[j]<<" ";
             //cout<<i<<" ";
             //if(!t)score[i][j]++;
         }//cout<<i<<" ";
-        if(!t)
-        {//cout<<path_link[5]<<"\n";
-            n[i].ins(weights,path_link,l,i,dir1);
-            
-            score=tmp;
-                /*for(int j=0;j<l;j++){
-                    if(j==i)continue;
-                    vector<int>v22;
-                    v22=n[i].rt_pth(j);
-                    //for(int k=0;k<v22.size()-1;k++){cout<<v22[k]<<" ";
-			    //score[v22[k]][v22[k+1]]++;
-		    //}cout<<"\n";
-                      // cout<<v22[k]<<" ";
-                }*/
-            i++;
+        //cout<<path_link[5]<<"\n";
+        if(t==0)visited[i]=1;
+            n[i].ins(weights,path_link,l,i,dir1,tmp,score);
         }
-        else threshold++;
-    }
-    ////////for link disjoint backup path
-    cout<<threshold<<"end\n";
-    for(int i=0;i<score.size();i++){
-	    for(int j=0;j<score[i].size();j++)cout<<score[i][j]<<" ";
+          /*for(int i1=0;i1<score.size();i1++){
+	    for(int j1=0;j1<score[i1].size();j1++)cout<<score[i1][j1]<<" ";
     cout<<"\n";}
-	    i=0;
-    while(i<l)
-    {
-        //t=0;
+        exit(0);*/
+    
+    ////////for link disjoint backup path
+    //cout<<threshold<<"end\n";
+    /*for(int i1=0;i1<score.size();i1++){
+	    for(int j1=0;j1<score[i1].size();j1++)cout<<score[i1][j1]<<" ";
+    cout<<"\n";}*/
+	    
+    
         
-
-
-    //cout<<i<<"\n";
-        
-        j=0;
+        j=0;int t1=0;
         while(j<l)
-        {t=0;
+        {
         vector<int>path_link(2000,0);
         vector<int>path;
         //cout<<j<<"\n";
         vector<int>weights(l,INT_MAX);
-        vector<int>v23;if(i==j){j++;continue;}
-                v23=n[i].rt_pth(j);
-             vector<vector<int>>tmp;   
+        vector<int>v23;v23=n[i].rt_pth(j);
+        if(i==j||visited_bk[i][j]||v23[0]==-1){j++;continue;}
+                
+                
+             //vector<vector<int>>tmp;   
         tmp=bckup(x,l,weights,i,path_link,score,threshold,v23);
 
         //for(int i1=0;i1<v23.size();i1++)cout<<v23[i1]<<"\n";
 
         //cout<<i<<"\n";
 
-
-
-
-
-
         
         
             if(weights[j]==INT_MAX)
             {
-                t=1;
+                t1=1;t=1;
                 
             }
-        
-        if(!t)
-        {
+            else{visited_bk[i][j]=1;
             //cout<<j<<"j\n ";
                 //if(i==j)continue;
                 int x1;
@@ -426,49 +651,82 @@ int main()
                 while(path_link[x1]!=i)
                 {
                     link.push(x1);
+                    score[x1][path_link[x1]]=tmp[x1][path_link[x1]];
+                     score[path_link[x1]][x1]=tmp[path_link[x1]][x1];
                     x1=path_link[x1];
                     //cout<<"S\n";
                 }
                 link.push(x1);//second node
                 link.push(i);//source node
+                score[x1][i]=tmp[x1][i];
+               score[i][x1]=tmp[i][x1];
                 while(!link.empty()){
                     path.push_back(link.top());
                      link.pop();}
-                score=tmp;
+                //score=tmp;
                 n[i].ins_b_path(path,j);
                 //cout<<"o\n";
-                
+            }
                 j++;
-        }
-        else threshold++;
-        }i++;
-    }cout<<threshold<<"\n";
-    for(int i=0;i<l;i++)
-    {
-        for(int j=0;j<l;j++)
-        {
-            if(i==j)continue;
-                vector<int>v2;
-                v2=n[i].rt_pth(j);
-                //for(int k=0;k<v2.size();k++)
-                    //cout<<v2[k]<<"\n";
-                vector<int>v1;
-                v1=n[i].rt_b_pth(j);
-                //for(int k=0;k<v1.size();k++)
-                    //cout<<v1[k]<<" ";
-                    //cout<<"\n";
-        }//cout<<"\n";
-    
+        
+        
+        }//if(t1)q.push(i);
+      /*  for(int i1=0;i1<score.size();i1++)
+      {
+	    for(int j1=0;j1<score[i1].size();j1++)
+	    cout<<score[i1][j1]<<" ";
+	    cout<<"\n";
+	    
+      }*/i++;
+      
     }
+   if(t==1)threshold++;}
+    cout<<threshold<<"\n";
+    sets st(l);
+    int a,b,c,d,f;
+    int mf[]={8000,4000,2000,1000,500,250};//modulation frequency based on different ranges
+    //string dir1=getenv("HOME");
+    //gen_path(l,dir1);
+    string dir;
+    dir=dir1+"/Documents/RSA/data2.txt";
+    //cout<<dir<<"\n";
+    fstream f3(dir);
+    
+     while(f3>>a>>b>>c)//taking input
+      {d=n[a].rt_wt(b);
+        
+        vector<int>v2;
+        v2=n[a].rt_pth(b);
+                    //for(int k=0;k<v2.size();k++)
+                        //cout<<v2[k]<<"\n";
+        vector<int>v1;
+        v1=n[a].rt_b_pth(b);
+                    //for(int k=0;k<v1.size();k++)
+                        //cout<<v1[k]<<" ";
+                        //cout<<"\n";
+        for(i=5;i>=0;i--)
+         {
+            if(mf[i]>=d)
+            {
+               d=i+1;//Sepectrum efficiency
+               break;
+            }
+         }
+         f=ceil(c/(12.5*d));
+        st.ins_set(v2,v1);
+            st.ins_requests(a,b,f);
+            //cout<<"\n";
+        
+        }
+        
     for(int i=0;i<l;i++)
     
         n[i].prnt_b_path(l,dir1,i);
     
-    for(int i=0;i<score.size();i++)
-    {
-	    for(int j=0;j<score[i].size();j++)
-	    cout<<score[i][j]<<" ";
-	    cout<<"\n";
-	    
-    }
+    
+
+    st.print_pset(dir1);
+    st.print_bset(dir1);
+    checkNins(st,n,l);
+    cout<<"max spectrum array & max subcarrier index\n"<<maxx(l,n)<<"\n";
 }

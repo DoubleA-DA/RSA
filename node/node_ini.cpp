@@ -59,7 +59,7 @@ class node
             while(!link.empty())
             {
                f2<<link.top()<<" ";//writing path
-               sp_alloc[link.top()]=vector<int>(1000,0);//initializing spectrum array
+               sp_alloc[link.top()]=vector<int>(3000,0);//initializing spectrum array
                pth[j].push_back(link.top());//storing path in ds
                link.pop();
             }
@@ -106,13 +106,41 @@ class node
             arr & arr1 are taken as 1-2 & 2-1 will have same spectrum array
         */
         int i;
+        printf("ind %d sp %d\n",ind,sp);
         for(i=ind;i<=ind+sp;i++)sp_alloc[arr][i]=1;//filling array with spectrum
         for(i=ind;i<=ind+sp;i++)sp_alloc[arr1][i]=1;//filling array with spectrum
         sp_alloc[arr][i]=-1;//filling last position with guard bit
         sp_alloc[arr1][i]=-1;//filling last position with guard bit
         mx_sp_ptr[arr]=ind+sp;//updating max index 
         mx_sp_ptr[arr1]=ind+sp;//updating max index 
-        for(i=0;i<1000;i++)
+        for(i=0;i<3000;i++)
+        {
+           if(!sp_alloc[arr][i])
+           {
+              sp_ptr[arr]=i;//updating index
+              sp_ptr[arr1]=i;//updating index
+              break;
+           }
+        }
+      }
+      void ins_spec_bk(int sp,int ind,int arr,int arr1)/////////for inserting spectrum in array
+      {
+        /*
+            sp=no. of spectrum
+            ind=starting index
+            arr=selects spectrum array
+            arr1=selects spectrum array
+            arr & arr1 are taken as 1-2 & 2-1 will have same spectrum array
+        */
+        int i;
+        //printf("ind %d sp %d\n",ind,sp);
+        for(i=ind;i<=sp;i++)sp_alloc[arr][i]=1;//filling array with spectrum
+        for(i=ind;i<=sp;i++)sp_alloc[arr1][i]=1;//filling array with spectrum
+        sp_alloc[arr][i]=-1;//filling last position with guard bit
+        sp_alloc[arr1][i]=-1;//filling last position with guard bit
+        mx_sp_ptr[arr]=ind+sp;//updating max index 
+        mx_sp_ptr[arr1]=ind+sp;//updating max index 
+        for(i=0;i<3000;i++)
         {
            if(!sp_alloc[arr][i])
            {
@@ -124,7 +152,7 @@ class node
       }
       void prnt_spec(int arr)
       {
-         for(int i=0;i<1000;i++)cout<<sp_alloc[arr][i];
+         for(int i=0;i<3000;i++)cout<<sp_alloc[arr][i];
          cout<<"\n";
       }
 };

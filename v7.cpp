@@ -43,11 +43,13 @@ int maxx(int l,node* n)
    {
       for(j=0;j<l;j++)
       {
-         if(i==j)continue;
+         if(i==j||n[i].rt_max_sp(j)==0)continue;
+         cout<<i<<" "<<j<<"\n";
+         n[i].prnt_spec(j);
          if(mx<n[i].rt_max_sp(j))mx=n[i].rt_max_sp(j),i1=i,j1=j;
       }
    }
-   n[i1].prnt_spec(j1);
+   //n[i1].prnt_spec(j1);
    return mx;
 }
 
@@ -130,12 +132,12 @@ vector<int>chk_bck_ind(vector<int>v1,int f,int l,node* n)
                b1 = end
                mx1 = highest index
             */
-         }
+         }//cout<<f<<" ";
          ///////////////////////////////////////////////////////////////
          int count_spec=0,ind=mx1,sw,cnt_1=0,f1=0;
          /*
             count_spec = counts till f
-            ind = index for free contiguous and continous space
+            ind = index for filled contiguous and continous space in primary path
             sw = flag
             f1 = remaning of the shared spectrum
          */
@@ -143,7 +145,7 @@ vector<int>chk_bck_ind(vector<int>v1,int f,int l,node* n)
          {
             vector<int>v3;
             v3=n[a1].rt_sp_arr(b1);/////////storing spectrum array
-            if(ind!=mx1)/////first time it skips, only checks if other indexes are full
+            if(ind!=mx1)//firdt time it skips
             {
                for(i=ind;i<v3.size();i++)
                {
@@ -158,12 +160,13 @@ vector<int>chk_bck_ind(vector<int>v1,int f,int l,node* n)
                      break;
                   }
                }
-            }
+            }int tmp_t=0;
             /////////////checking for all the indexes in path to make it continous
             for(i=0;i<v1.size()-1;i++)
             {
                sw=0;
                v3=n[v1[i]].rt_sp_arr(v1[i+1]);
+               if(v1[i]==0&&v1[i+1]==5)tmp_t=1;
                for(j=ind;j<ind+f;j++)
                {
                   if(v3[j])
@@ -173,7 +176,8 @@ vector<int>chk_bck_ind(vector<int>v1,int f,int l,node* n)
                   }
                }
                if(sw)break;
-            }
+            }if(!f1)f1=ind+f;
+            
             if(!sw)break;//if sw==0 got the node
             ind+=f;//updating index with required spectrum and checking it again if sw==1
             if(ind>=999)////////checking for overflow of slots in the spectrum array
@@ -182,7 +186,7 @@ vector<int>chk_bck_ind(vector<int>v1,int f,int l,node* n)
                //exit(0);
                return {-1,0};
             }
-         }
+         }printf("f %d ind %d f1 %d\n",f,ind,f1);
          return {ind,f1};
 }
 
@@ -217,8 +221,9 @@ void checkNins(sets st,node* n,int l)
             p_ind=chk_ind(tmp[j],sp,l,n);
             b_ind=chk_bck_ind(tmp1[j],sp,l,n);
             if(p_ind==-1||b_ind[0]==-1)continue;
+            //cout<<"i "<<i<<"\n";
             for(k=0;k<tmp[j].size()-1;k++)n[tmp[j][k]].ins_spec(sp,p_ind,tmp[j][k+1],tmp[j][k]);
-            for(k=0;k<tmp1[j].size()-1;k++)n[tmp1[j][k]].ins_spec(b_ind[1],b_ind[0],tmp1[j][k+1],tmp1[j][k]);
+            for(k=0;k<tmp1[j].size()-1;k++)n[tmp1[j][k]].ins_spec_bk(b_ind[1],b_ind[0],tmp1[j][k+1],tmp1[j][k]);
          }
       }
    }
